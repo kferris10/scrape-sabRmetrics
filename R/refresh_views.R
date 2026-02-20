@@ -1,0 +1,8 @@
+library(dotenv)
+load_dot_env()
+source("R/utils.R")
+source("R/db.R")
+setup_logging()
+con <- get_con()
+on.exit(DBI::dbDisconnect(con), add = TRUE)
+refresh_views(con)

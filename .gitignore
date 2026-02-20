@@ -1,4 +1,9 @@
 
+
+# === specific files === #
+
+bugs.txt
+
 # === Project-specific === #
 # renv library (packages are restored from renv.lock)
 renv/library/

@@ -13,7 +13,15 @@ default:
       - "A+"
       - "A"
     game_types:
+      - "S"
+      - "E"
+      - "A"
       - "R"
+      - "F"
+      - "D"
+      - "L"
+      - "W"
+      - "C"
     parallel_cores: 4
     chunk_days: 7
   logging:

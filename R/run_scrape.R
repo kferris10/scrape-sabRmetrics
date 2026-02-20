@@ -1,5 +1,8 @@
 # run_scrape.R — CLI entry point: parses args, dispatches
 
+library(dotenv)
+load_dot_env()  # loads .env from working directory into Sys.setenv()
+
 library(optparse)
 
 source("R/utils.R")
@@ -26,8 +29,12 @@ option_list <- list(
     help = "scrape_log ID for retry mode"),
   make_option("--levels", type = "character", default = NULL,
     help = "Comma-separated levels to scrape (overrides config)"),
+  make_option("--game-types", type = "character", default = NULL,
+    help = "Comma-separated game types to scrape (overrides config). E.g. R,S,D,L,W"),
   make_option("--no-parallel", action = "store_true", default = FALSE,
-    help = "Disable parallel processing")
+    help = "Disable parallel processing"),
+  make_option("--sources", type = "character", default = NULL,
+    help = "Comma-separated scrapers to run: schedule,statsapi,statcast (default: all)")
 )
 
 opt <- parse_args(OptionParser(option_list = option_list))
@@ -42,6 +49,15 @@ if (is.null(opt$mode)) {
 
 # Parse levels override
 levels <- if (!is.null(opt$levels)) strsplit(opt$levels, ",")[[1]] else NULL
+
+# Parse game_types override
+game_types <- if (!is.null(opt[["game-types"]])) strsplit(opt[["game-types"]], ",")[[1]] else NULL
+
+# Parse sources filter (default: all three)
+all_sources <- c("schedule", "statsapi", "statcast")
+sources <- if (!is.null(opt$sources)) strsplit(opt$sources, ",")[[1]] else all_sources
+unknown_sources <- setdiff(sources, all_sources)
+if (length(unknown_sources) > 0) stop("Unknown source(s): ", paste(unknown_sources, collapse = ", "))
 
 # Connect to DB
 con <- get_con()
@@ -64,9 +80,9 @@ if (opt$mode == "daily") {
   target_date <- if (!is.null(opt$date)) as.Date(opt$date) else yesterday()
   log_info("Daily scrape for {target_date}")
 
-  scrape_schedule(con, target_date, target_date, levels = levels)
-  scrape_statsapi(con, target_date, target_date, levels = levels)
-  scrape_baseballsavant(con, target_date, target_date)
+  if ("schedule" %in% sources) scrape_schedule(con, target_date, target_date, levels = levels, game_types = game_types)
+  if ("statsapi" %in% sources) scrape_statsapi(con, target_date, target_date, levels = levels, game_types = game_types)
+  if ("statcast" %in% sources) scrape_baseballsavant(con, target_date, target_date, game_types = game_types)
 
   refresh_views(con)
 
@@ -87,9 +103,9 @@ if (opt$mode == "daily") {
 
   for (chunk in chunks) {
     log_info("Processing chunk: {chunk$start} to {chunk$end}")
-    scrape_schedule(con, chunk$start, chunk$end, levels = levels)
-    scrape_statsapi(con, chunk$start, chunk$end, levels = levels, cl = cl)
-    scrape_baseballsavant(con, chunk$start, chunk$end, cl = cl)
+    if ("schedule" %in% sources) scrape_schedule(con, chunk$start, chunk$end, levels = levels, game_types = game_types)
+    if ("statsapi" %in% sources) scrape_statsapi(con, chunk$start, chunk$end, levels = levels, game_types = game_types, cl = cl)
+    if ("statcast" %in% sources) scrape_baseballsavant(con, chunk$start, chunk$end, game_types = game_types, cl = cl)
   }
 
   refresh_views(con)
@@ -120,12 +136,14 @@ if (opt$mode == "daily") {
 
   if (src == "schedule") {
     scrape_schedule(con, retry_start, retry_end,
-                    levels = if (!is.na(retry_level)) retry_level)
+                    levels = if (!is.na(retry_level)) retry_level,
+                    game_types = game_types)
   } else if (src == "statsapi") {
     scrape_statsapi(con, retry_start, retry_end,
-                    levels = if (!is.na(retry_level)) retry_level)
+                    levels = if (!is.na(retry_level)) retry_level,
+                    game_types = game_types)
   } else if (src == "statcast") {
-    scrape_baseballsavant(con, retry_start, retry_end)
+    scrape_baseballsavant(con, retry_start, retry_end, game_types = game_types)
   } else if (src == "players") {
     year <- as.integer(format(retry_start, "%Y"))
     scrape_players(con, year = year,
