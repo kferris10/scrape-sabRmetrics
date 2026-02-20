@@ -41,18 +41,17 @@ if (is.null(opt$mode)) {
 }
 
 # Parse levels override
-levels <- if (!is.null(opt$levels)) {
-  strsplit(opt$levels, ",")[[1]]
-} else {
-  NULL
-}
+levels <- if (!is.null(opt$levels)) strsplit(opt$levels, ",")[[1]] else NULL
 
 # Connect to DB
-con <- get_db_connection()
+con <- get_con()
 on.exit(dbDisconnect(con), add = TRUE)
 ensure_tables(con)
 
-# Cluster for parallel modes
+cfg        <- config::get()
+chunk_days <- cfg$scraping$chunk_days
+
+# Cluster — only for backfill mode unless --no-parallel
 cl <- NULL
 if (!opt[["no-parallel"]] && opt$mode == "backfill") {
   cl <- make_cluster()
@@ -60,11 +59,8 @@ if (!opt[["no-parallel"]] && opt$mode == "backfill") {
 }
 
 # --- Dispatch ---
-cfg <- config::get()
-chunk_days <- cfg$scraping$chunk_days
 
 if (opt$mode == "daily") {
-  # Daily mode: scrape a single day
   target_date <- if (!is.null(opt$date)) as.Date(opt$date) else yesterday()
   log_info("Daily scrape for {target_date}")
 
@@ -72,15 +68,16 @@ if (opt$mode == "daily") {
   scrape_statsapi(con, target_date, target_date, levels = levels)
   scrape_baseballsavant(con, target_date, target_date)
 
+  refresh_views(con)
+
 } else if (opt$mode == "backfill") {
-  # Backfill mode: scrape a date range in chunks
   if (!is.null(opt$year)) {
-    range <- season_date_range(opt$year)
+    range      <- season_date_range(opt$year)
     start_date <- range$start
-    end_date <- range$end
+    end_date   <- range$end
   } else if (!is.null(opt$start) && !is.null(opt$end)) {
     start_date <- as.Date(opt$start)
-    end_date <- as.Date(opt$end)
+    end_date   <- as.Date(opt$end)
   } else {
     stop("Backfill mode requires --year or --start and --end")
   }
@@ -94,6 +91,8 @@ if (opt$mode == "daily") {
     scrape_statsapi(con, chunk$start, chunk$end, levels = levels, cl = cl)
     scrape_baseballsavant(con, chunk$start, chunk$end, cl = cl)
   }
+
+  refresh_views(con)
 
 } else if (opt$mode == "players") {
   year <- if (!is.null(opt$year)) opt$year else as.integer(format(Sys.Date(), "%Y"))
@@ -112,31 +111,33 @@ if (opt$mode == "daily") {
     log_warn("Log entry {opt[['log-id']]} has status '{log_entry$status}', not 'failed'")
   }
 
-  log_info("Retrying scrape_log id={opt[['log-id']]}: mode={log_entry$mode}")
+  log_info("Retrying scrape_log id={opt[['log-id']]}: data_source={log_entry$data_source}")
 
-  retry_mode <- log_entry$mode
-  retry_start <- as.Date(log_entry$start_date)
-  retry_end <- as.Date(log_entry$end_date)
+  src         <- log_entry$data_source
+  retry_start <- as.Date(log_entry$date_start)
+  retry_end   <- as.Date(log_entry$date_end)
   retry_level <- log_entry$level
 
-  if (retry_mode == "schedule") {
+  if (src == "schedule") {
     scrape_schedule(con, retry_start, retry_end,
                     levels = if (!is.na(retry_level)) retry_level)
-  } else if (retry_mode == "statsapi") {
+  } else if (src == "statsapi") {
     scrape_statsapi(con, retry_start, retry_end,
                     levels = if (!is.na(retry_level)) retry_level)
-  } else if (retry_mode == "statcast") {
+  } else if (src == "statcast") {
     scrape_baseballsavant(con, retry_start, retry_end)
-  } else if (retry_mode == "players") {
+  } else if (src == "players") {
     year <- as.integer(format(retry_start, "%Y"))
     scrape_players(con, year = year,
                    levels = if (!is.na(retry_level)) strsplit(retry_level, ",")[[1]])
-  } else if (retry_mode == "season_summary") {
+  } else if (src == "season_summary") {
     year <- as.integer(format(retry_start, "%Y"))
     scrape_season_summary(con, year = year)
   } else {
-    stop("Unknown retry mode: ", retry_mode)
+    stop("Unknown data_source in scrape_log: ", src)
   }
+
+  refresh_views(con)
 
 } else {
   stop("Unknown mode: ", opt$mode,

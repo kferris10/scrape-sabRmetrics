@@ -1,10 +1,10 @@
 default:
-  db:
+  database:
     host: "localhost"
     port: 5432
     dbname: "baseball"
     user: "postgres"
-    password: !expr Sys.getenv("DB_PASSWORD")
+    password: !expr Sys.getenv("BASEBALL_DB_PASSWORD")
   scraping:
     levels:
       - "MLB"
@@ -16,3 +16,6 @@ default:
       - "R"
     parallel_cores: 4
     chunk_days: 7
+  logging:
+    level: "INFO"
+    file: "logs/scrape.log"

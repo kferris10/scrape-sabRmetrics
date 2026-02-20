@@ -2,6 +2,9 @@
 # === Project-specific === #
 # renv library (packages are restored from renv.lock)
 renv/library/
+
+# Log files (keep directory, ignore log contents)
+logs/*.log
 renv/staging/
 renv/cellar/
 renv/sandbox/

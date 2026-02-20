@@ -52,19 +52,24 @@ Rscript R/run_scrape.R --mode daily --levels MLB,AAA
 
 - `config.yml` — DB connection and scraping settings (password from `BASEBALL_DB_PASSWORD` env var)
 - `sql/schema.sql` — PostgreSQL DDL for all 8 tables
-- `R/db.R` — DB connection, `ensure_tables()`, `upsert_dataframe()` helper
+- `sql/views.sql` — Expression indexes + `mv_pitch` and `mv_statcast` materialized views
+- `R/db.R` — DB connection, `ensure_tables()`, `upsert_dataframe()`, `refresh_views()`
 - `R/utils.R` — Logging, date chunking, parallel cluster management
-- `R/scrape_schedule.R` — Game schedule/results
-- `R/scrape_statsapi.R` — Event/pitch/play-level data (returns 3 tables)
+- `R/scrape_schedule.R` — Game schedule/results (flat columns)
+- `R/scrape_statsapi.R` — Event/pitch/play-level data (flat columns, 3 tables)
 - `R/scrape_baseballsavant.R` — Statcast data (MLB only, stored as JSONB)
-- `R/scrape_players.R` — Player biographical data
-- `R/scrape_season_summary.R` — Season hitting/pitching stats
+- `R/scrape_players.R` — Player biographical data (flat columns)
+- `R/scrape_season_summary.R` — Season hitting/pitching stats (JSONB)
 - `R/run_scrape.R` — CLI entry point with optparse
 
 ## Key Design Decisions
 
-- All non-PK columns stored as JSONB `data` column for schema flexibility
+- **Flat columns** for stable sources: `schedule`, `statsapi_event/pitch/play`, `player`
+- **JSONB `data` column** for volatile sources: `statcast` (90+ columns, new Statcast metrics added regularly), `season_summary` (hitting vs pitching have different column sets)
+- `mv_pitch` materialised view pre-joins statsapi_pitch + statsapi_event + schedule across all levels
+- `mv_statcast` materialised view extracts ~25 typed columns from statcast JSONB for fast analytics
 - Upserts via temp table + `INSERT ... ON CONFLICT DO UPDATE` for idempotency
 - Backfill uses 7-day chunks with parallel cluster; daily mode runs sequentially
 - `scrape_log` table tracks completed/failed scrapes to enable skip and retry
-- Levels: MLB, AAA, AA, A+, A, CL, DSL (configurable in config.yml)
+- `refresh_views()` called automatically at end of daily, backfill, and retry modes
+- Levels: MLB, AAA, AA, A+, A (configurable in config.yml; sabRmetrics does not support CL/DSL)
