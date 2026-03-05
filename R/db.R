@@ -43,7 +43,7 @@ ensure_views <- function(con) {
 
 refresh_views <- function(con) {
   log_info("Refreshing materialized views")
-  for (view in c("mv_pitch", "mv_statcast")) {
+  for (view in c("mv_statcast")) {
     populated <- dbGetQuery(con,
       sprintf("SELECT ispopulated FROM pg_matviews WHERE matviewname = '%s'", view)
     )$ispopulated
