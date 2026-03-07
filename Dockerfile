@@ -18,12 +18,8 @@ COPY renv/activate.R renv/activate.R
 COPY renv/settings.json renv/settings.json
 
 # Install renv, then restore all packages from the lockfile.
-# bigrquery is installed separately because it is not yet in renv.lock;
-# after running `renv::install("bigrquery"); renv::snapshot()` locally and
-# committing the updated renv.lock, this extra line can be removed.
 RUN Rscript -e 'install.packages("renv", repos = "https://cloud.r-project.org")' \
- && Rscript -e 'renv::restore()' \
- && Rscript -e 'if (!requireNamespace("bigrquery", quietly = TRUE)) install.packages("bigrquery", repos = "https://cloud.r-project.org")'
+ && Rscript -e 'renv::restore()' 
 
 # Copy source (after packages — avoids reinstalling on code changes)
 COPY R/        R/
