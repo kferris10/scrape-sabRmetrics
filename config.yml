@@ -5,6 +5,9 @@ default:
     dbname: "baseball"
     user: "postgres"
     password: !expr Sys.getenv("BASEBALL_DB_PASSWORD")
+  bigquery:
+    project: !expr Sys.getenv("GCP_PROJECT_ID")
+    dataset: !expr Sys.getenv("BQ_DATASET", unset = "baseball")
   scraping:
     levels:
       - "MLB"

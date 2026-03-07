@@ -6,12 +6,6 @@ load_dot_env()  # loads .env from working directory into Sys.setenv()
 library(optparse)
 
 source("R/utils.R")
-source("R/db.R")
-source("R/scrape_schedule.R")
-source("R/scrape_statsapi.R")
-source("R/scrape_baseballsavant.R")
-source("R/scrape_players.R")
-source("R/scrape_season_summary.R")
 
 # --- CLI options ---
 option_list <- list(
@@ -34,10 +28,26 @@ option_list <- list(
   make_option("--no-parallel", action = "store_true", default = FALSE,
     help = "Disable parallel processing"),
   make_option("--sources", type = "character", default = NULL,
-    help = "Comma-separated scrapers to run: schedule,statsapi,statcast (default: all)")
+    help = "Comma-separated scrapers to run: schedule,statsapi,statcast (default: all)"),
+  make_option("--backend", type = "character", default = NULL,
+    help = "Database backend: postgres (default) or bigquery. Overrides SCRAPE_BACKEND env var.")
 )
 
 opt <- parse_args(OptionParser(option_list = option_list))
+
+# --- Load database backend ---
+backend <- opt$backend %||% Sys.getenv("SCRAPE_BACKEND", unset = "postgres")
+if (backend == "bigquery") {
+  source("R/db_bigquery.R")
+} else {
+  source("R/db.R")
+}
+
+source("R/scrape_schedule.R")
+source("R/scrape_statsapi.R")
+source("R/scrape_baseballsavant.R")
+source("R/scrape_players.R")
+source("R/scrape_season_summary.R")
 
 # --- Setup ---
 setup_logging()
