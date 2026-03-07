@@ -1,0 +1,64 @@
+name: Build and Deploy to Cloud Run
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:  # allow manual trigger from GitHub UI
+
+env:
+  REGION: us-central1
+  REGISTRY: us-central1-docker.pkg.dev
+  AR_REPO: baseball-scraper       # Artifact Registry repo name (created in setup)
+  IMAGE: scrape-baseball
+  JOB_NAME: scrape-baseball-daily
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write   # required for Workload Identity Federation
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Authenticate to GCP via Workload Identity Federation (no long-lived key files).
+      # See docs/gcp_setup.md for how to configure the WIF pool and provider.
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up gcloud CLI
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.REGISTRY }} --quiet
+
+      - name: Build and push Docker image
+        run: |
+          IMAGE_PATH="${{ env.REGISTRY }}/${{ vars.GCP_PROJECT_ID }}/${{ env.AR_REPO }}/${{ env.IMAGE }}"
+          docker build -t "${IMAGE_PATH}:${{ github.sha }}" -t "${IMAGE_PATH}:latest" .
+          docker push "${IMAGE_PATH}:${{ github.sha }}"
+          docker push "${IMAGE_PATH}:latest"
+          echo "IMAGE_PATH=${IMAGE_PATH}" >> $GITHUB_ENV
+
+      # Update the Cloud Run Job image. Creates the job on first deploy if it
+      # doesn't exist yet (the || gcloud run jobs create branch handles that).
+      - name: Deploy Cloud Run Job
+        run: |
+          IMAGE_PATH="${{ env.IMAGE_PATH }}:${{ github.sha }}"
+
+          gcloud run jobs update ${{ env.JOB_NAME }} \
+            --image "${IMAGE_PATH}" \
+            --region ${{ env.REGION }} \
+            --set-env-vars "GCP_PROJECT_ID=${{ vars.GCP_PROJECT_ID }},BQ_DATASET=baseball,SCRAPE_BACKEND=bigquery" \
+          || gcloud run jobs create ${{ env.JOB_NAME }} \
+            --image "${IMAGE_PATH}" \
+            --region ${{ env.REGION }} \
+            --task-timeout=3600 \
+            --max-retries=1 \
+            --service-account="${{ secrets.GCP_SERVICE_ACCOUNT }}" \
+            --set-env-vars "GCP_PROJECT_ID=${{ vars.GCP_PROJECT_ID }},BQ_DATASET=baseball,SCRAPE_BACKEND=bigquery"

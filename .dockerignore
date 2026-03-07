@@ -1,0 +1,9 @@
+.git
+.env
+logs/
+renv/library/
+*.Rhistory
+*.RData
+docs/
+scripts/
+.github/
