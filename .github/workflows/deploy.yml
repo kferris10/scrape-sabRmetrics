@@ -30,9 +30,6 @@ jobs:
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
           project_id: ${{ vars.GCP_PROJECT_ID }}
 
-      - name: Set up gcloud CLI
-        uses: google-github-actions/setup-gcloud@v2
-
       - name: Set gcloud project
         run: gcloud config set project ${{ vars.GCP_PROJECT_ID }}
 
