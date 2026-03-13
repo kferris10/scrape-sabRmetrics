@@ -31,8 +31,9 @@ jobs:
 
       - name: Set up gcloud CLI
         uses: google-github-actions/setup-gcloud@v2
-        with:
-          project_id: ${{ vars.GCP_PROJECT_ID }}
+
+      - name: Set gcloud project
+        run: gcloud config set project ${{ vars.GCP_PROJECT_ID }}
 
       # Helpful debug step (optional but recommended)
       - name: Verify gcloud configuration
@@ -47,11 +48,10 @@ jobs:
           docker build -t "${IMAGE_PATH}:${{ github.sha }}" -t "${IMAGE_PATH}:latest" .
           docker push "${IMAGE_PATH}:${{ github.sha }}"
           docker push "${IMAGE_PATH}:latest"
-          echo "IMAGE_PATH=${IMAGE_PATH}" >> $GITHUB_ENV
 
       - name: Deploy Cloud Run Job
         run: |
-          IMAGE_PATH="${{ env.IMAGE_PATH }}:${{ github.sha }}"
+          IMAGE_PATH="${{ env.REGISTRY }}/${{ vars.GCP_PROJECT_ID }}/${{ env.AR_REPO }}/${{ env.IMAGE }}:${{ github.sha }}"
 
           gcloud run jobs update ${{ env.JOB_NAME }} \
             --image "${IMAGE_PATH}" \
