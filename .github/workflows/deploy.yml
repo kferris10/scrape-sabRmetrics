@@ -8,7 +8,7 @@ on:
 env:
   REGION: us-central1
   REGISTRY: us-central1-docker.pkg.dev
-  AR_REPO: baseball-scraper
+  AR_REPO: sabrmetrics-scraper
   IMAGE: scrape-baseball
   JOB_NAME: scrape-baseball-daily
 
