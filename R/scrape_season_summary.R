@@ -2,7 +2,6 @@
 
 library(sabRmetrics)
 
-source("R/db.R")
 source("R/utils.R")
 
 scrape_season_summary <- function(con, year, levels = NULL,

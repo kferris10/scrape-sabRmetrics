@@ -1,7 +1,7 @@
 # run_scrape.R — CLI entry point: parses args, dispatches
 
 library(dotenv)
-load_dot_env()  # loads .env from working directory into Sys.setenv()
+if (file.exists(".env")) load_dot_env()  # loads .env if present (local dev); Cloud Run injects env vars directly
 
 library(optparse)
 

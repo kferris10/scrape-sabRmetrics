@@ -70,6 +70,10 @@ Rscript R/run_scrape.R --mode daily --backend bigquery
 - `R/scrape_season_summary.R` — Season hitting/pitching stats (JSONB)
 - `R/run_scrape.R` — CLI entry point with optparse
 
+## Local Environment
+
+- `gcloud` commands are run in **Windows cmd**. Format them accordingly (e.g., use `^` for line continuation, `%VAR%` for env vars).
+
 ## Key Design Decisions
 
 - **Two DB backends**: `--backend postgres` (default locally) and `--backend bigquery` (default in Docker). Selected via `--backend` flag or `SCRAPE_BACKEND` env var. Both expose the same function API (`get_con`, `ensure_tables`, `upsert_dataframe`, `refresh_views`, `pack_jsonb`, scrape-log helpers).

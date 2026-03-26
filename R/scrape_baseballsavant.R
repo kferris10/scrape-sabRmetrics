@@ -2,7 +2,6 @@
 
 library(sabRmetrics)
 
-source("R/db.R")
 source("R/utils.R")
 
 scrape_baseballsavant <- function(con, start_date, end_date,

@@ -423,9 +423,19 @@ upsert_dataframe <- function(con, table_name, df, pk_cols) {
   # Build MERGE SQL
   non_pk_cols <- setdiff(send_cols, pk_cols)
 
+  # Explicitly cast source columns to the target BQ type to avoid MERGE
+  # failures when dbWriteTable infers a different type for the temp table
+  # (e.g. R Date → STRING, logical → INT64).
+  typed_casts <- c("INT64", "FLOAT64", "NUMERIC", "BOOL", "DATE", "TIMESTAMP")
   src_expr <- function(col) {
-    if (col %in% json_cols) sprintf("PARSE_JSON(S.`%s`)", col)
-    else sprintf("S.`%s`", col)
+    bq_type <- type_map[[col]]
+    if (col %in% json_cols) {
+      sprintf("PARSE_JSON(S.`%s`)", col)
+    } else if (!is.null(bq_type) && bq_type %in% typed_casts) {
+      sprintf("CAST(S.`%s` AS %s)", col, bq_type)
+    } else {
+      sprintf("S.`%s`", col)
+    }
   }
 
   on_clause    <- paste(sprintf("T.`%s` = S.`%s`", pk_cols, pk_cols), collapse = " AND ")

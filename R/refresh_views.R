@@ -1,5 +1,5 @@
 library(dotenv)
-load_dot_env()
+if (file.exists(".env")) load_dot_env()
 source("R/utils.R")
 source("R/db.R")
 setup_logging()

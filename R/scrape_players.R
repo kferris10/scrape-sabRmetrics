@@ -2,7 +2,6 @@
 
 library(sabRmetrics)
 
-source("R/db.R")
 source("R/utils.R")
 
 # Flat columns to keep — must match the player table schema.
