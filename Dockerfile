@@ -19,7 +19,7 @@ COPY renv/settings.json renv/settings.json
 
 # Install renv, then restore all packages from the lockfile.
 RUN Rscript -e 'install.packages("renv", repos = "https://cloud.r-project.org")' \
- && Rscript -e 'renv::restore()' 
+ && Rscript -e 'renv::restore()'
 
 # Copy source (after packages — avoids reinstalling on code changes)
 COPY R/        R/
