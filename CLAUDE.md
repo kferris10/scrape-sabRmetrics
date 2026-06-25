@@ -85,3 +85,8 @@ Rscript R/run_scrape.R --mode daily --backend bigquery
 - `scrape_log` table tracks completed/failed scrapes to enable skip and retry
 - `refresh_views()` called automatically at end of daily, backfill, and retry modes
 - Levels: MLB, AAA, AA, A+, A (configurable in config.yml; sabRmetrics does not support CL/DSL)
+
+## Current Project Status (as of 2026-04-01)
+
+- **Statcast** (`scrape_baseballsavant.R`): backfill complete, automated daily scrape running on GCP. No further work needed.
+- **Non-statcast data** (`scrape_schedule.R`, `scrape_statsapi.R`, `scrape_players.R`, `scrape_season_summary.R`): backfill **not yet done**, daily automation **not yet set up**. This is the active area of work.

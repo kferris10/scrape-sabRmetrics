@@ -252,6 +252,7 @@ ensure_views <- function(con) {
       s.game_pk,
       s.at_bat_number,
       s.pitch_number,
+      CONCAT(CAST(s.game_pk AS STRING), '_', CAST(s.at_bat_number AS STRING), '_', CAST(s.pitch_number AS STRING)) AS pitch_uid,
       s.year,
       s.scraped_at,
 
@@ -426,7 +427,7 @@ upsert_dataframe <- function(con, table_name, df, pk_cols) {
   # Explicitly cast source columns to the target BQ type to avoid MERGE
   # failures when dbWriteTable infers a different type for the temp table
   # (e.g. R Date → STRING, logical → INT64).
-  typed_casts <- c("INT64", "FLOAT64", "NUMERIC", "BOOL", "DATE", "TIMESTAMP")
+  typed_casts <- c("INT64", "FLOAT64", "NUMERIC", "BOOL", "DATE", "TIMESTAMP", "STRING")
   src_expr <- function(col) {
     bq_type <- type_map[[col]]
     if (col %in% json_cols) {
@@ -438,7 +439,7 @@ upsert_dataframe <- function(con, table_name, df, pk_cols) {
     }
   }
 
-  on_clause    <- paste(sprintf("T.`%s` = S.`%s`", pk_cols, pk_cols), collapse = " AND ")
+  on_clause    <- paste(sprintf("T.`%s` = %s", pk_cols, sapply(pk_cols, src_expr)), collapse = " AND ")
   ins_cols_sql <- paste(c(sprintf("`%s`", send_cols), "`scraped_at`"),         collapse = ", ")
   ins_vals_sql <- paste(c(sapply(send_cols, src_expr), "CURRENT_TIMESTAMP()"), collapse = ", ")
 
